@@ -1,0 +1,40 @@
+msbp.exe restore 
+"local(path=c:\temp\xos.bak)" 
+"db(database=XosDBA;restoretype=database;
+	MOVE='_DBA_BBDD_Administration_v2'TO'C:\Program Files\Microsoft SQL Server\MSSQL11.MSSQL2012\MSSQL\DATA\_DBA_BBDD_Administration_v2.mdf';
+	MOVE='_DBA_BBDD_Administration_v2_log'TO'C:\Program Files\Microsoft SQL Server\MSSQL11.MSSQL2012\MSSQL\DATA\_DBA_BBDD_Administration_v2_log.ldf')" 
+
+
+
+
+
+start /belownormal 
+
+msbp.exe backup 
+"db(CLUSTERNETWORKNAME=centsqld30,51433;
+	INSTANCENAME=PRE01;
+	database=GestionProcesal;
+	COPY_ONLY;
+	CHECKSUM;
+	buffercount=20;
+	maxtransfersize=4194304)"
+"gzip(level=1)"
+"local(path=\\centcseg01\sql06\CENTSQLD30$PRE01\Usuario\GestionProcesal\GestionProcesal_FULL_20130605_999999_01.bak.gz;
+	path=\\centcseg01\sql06\CENTSQLD30$PRE01\Usuario\GestionProcesal\GestionProcesal_FULL_20130605_999999_02.bak.gz;
+	path=\\centcseg01\sql06\CENTSQLD30$PRE01\Usuario\GestionProcesal\GestionProcesal_FULL_20130605_999999_03.bak.gz;
+	path=\\centcseg01\sql06\CENTSQLD30$PRE01\Usuario\GestionProcesal\GestionProcesal_FULL_20130605_999999_04.bak.gz)"
+
+
+
+
+msbp.exe restore 
+"local(path=\\Centcseg01\sql05\CENTSQL18\Usuario\REPL_SIB\REPL_SIB_FULL_20130528_115599.bak.zip)" 
+"zip64()" 
+"db(database=REPL_SIB;CHECKSUM;restoretype=verifyonly)"
+
+
+msbp.exe restore 
+"local(path=c:\temp\XosPruebas.bak.gz)" 
+"gzip()" 
+"db(database=XosPruebas;restoretype=database)"
+
