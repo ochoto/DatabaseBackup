@@ -1,7 +1,43 @@
+/*
+
+-- Habilitar XP_CMDSHELL si no lo está
+
+-- http://msdn.microsoft.com/en-us/library/ms190693(v=sql.90).aspx
+
+-- To allow advanced options to be changed.
+EXEC sp_configure 'show advanced options', 1
+GO
+-- To update the currently configured value for advanced options.
+RECONFIGURE
+GO
+-- To enable the feature.
+EXEC sp_configure 'xp_cmdshell', 1
+GO
+-- To update the currently configured value for this feature.
+RECONFIGURE
+GO
+
+SELECT CONVERT(INT, ISNULL(value, value_in_use)) AS config_value
+FROM  sys.configurations
+WHERE  name = 'xp_cmdshell' ;
+
+
+declare @comando nvarchar(max);
+SET @comando = 'xp_cmdshell ''c:\msbp\msbp.exe backup "db(database=_DBA_BBDD_Administration_v2;COPY_ONLY;CHECKSUM;buffercount=100;maxtransfersize=4194304)" "gzip(level=1)" "local(path=\\centcseg01\SQL06\PRE\CENTSQLD07\Usuario\_DBA_BBDD_Administration_v2\_DBA_BBDD_Administration_v2_FULL_20130613_195731_1_of_2.bak.gz;path=\\centcseg01\SQL06\PRE\CENTSQLD07\Usuario\_DBA_BBDD_Administration_v2\_DBA_BBDD_Administration_v2_FULL_20130613_195731_2_of_2.bak.gz;)"''';
+execute(@comando);
+select @@ERROR;
+
+
+*/
+
+
 USE [_DBA_BBDD_Administration_v2]
 GO
 
-/****** Object:  StoredProcedure [dbo].[DatabaseBackup]    Script Date: 06/17/2013 12:43:08 ******/
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DatabaseBackup]') AND type in (N'P', N'PC'))
+DROP PROCEDURE [dbo].[DatabaseBackup]
+GO
+
 SET ANSI_NULLS ON
 GO
 
@@ -523,7 +559,7 @@ BEGIN
     SET @Error = @@ERROR
   END
 
-  IF @BackupSoftware NOT IN ('LITESPEED','SQLBACKUP','HYPERBAC','SQLSAFE')
+  IF @BackupSoftware NOT IN ('LITESPEED','SQLBACKUP','HYPERBAC','SQLSAFE','MSBP')
   BEGIN
     SET @ErrorMessage = 'The value for the parameter @BackupSoftware is not supported.' + CHAR(13) + CHAR(10) + ' '
     RAISERROR(@ErrorMessage,16,1) WITH NOWAIT
@@ -549,6 +585,19 @@ BEGIN
     SET @ErrorMessage = 'Idera SQL safe backup is not installed. Download http://www.idera.com/Products/SQL-Server/SQL-safe-backup/.' + CHAR(13) + CHAR(10) + ' '
     RAISERROR(@ErrorMessage,16,1) WITH NOWAIT
     SET @Error = @@ERROR
+  END
+
+  IF @BackupSoftware = 'MSBP'
+  BEGIN
+    INSERT INTO @DirectoryInfo (FileExists, FileIsADirectory, ParentDirectoryExists)
+    EXECUTE [master].dbo.xp_fileexist 'c:\msbp\msbp.exe'
+
+    IF NOT EXISTS (SELECT * FROM @DirectoryInfo WHERE FileExists = 1 AND FileIsADirectory = 0)
+    BEGIN
+        SET @ErrorMessage = 'The directory c:\msbp\msbp.exe does not exist.' + CHAR(13) + CHAR(10) + ' '
+        RAISERROR(@ErrorMessage,16,1) WITH NOWAIT
+        SET @Error = @@ERROR
+    END
   END
 
   IF @CheckSum NOT IN ('Y','N') OR @CheckSum IS NULL
@@ -600,7 +649,7 @@ BEGIN
     SET @Error = @@ERROR
   END
 
-  IF @Threads IS NOT NULL AND (@BackupSoftware NOT IN('LITESPEED','SQLBACKUP','SQLSAFE') OR @BackupSoftware IS NULL) OR @Threads < 2 OR @Threads > 32
+  IF @Threads IS NOT NULL AND (@BackupSoftware NOT IN('LITESPEED','SQLBACKUP','SQLSAFE','MSBP') OR @BackupSoftware IS NULL) OR @Threads < 2 OR @Threads > 32
   BEGIN
     SET @ErrorMessage = 'The value for the parameter @Threads is not supported.' + CHAR(13) + CHAR(10) + ' '
     RAISERROR(@ErrorMessage,16,1) WITH NOWAIT
@@ -877,6 +926,9 @@ BEGIN
       WHEN @BackupSoftware = 'SQLSAFE' AND @CurrentBackupType = 'FULL' THEN 'safe'
       WHEN @BackupSoftware = 'SQLSAFE' AND @CurrentBackupType = 'DIFF' THEN 'safe'
       WHEN @BackupSoftware = 'SQLSAFE' AND @CurrentBackupType = 'LOG' THEN 'safe'
+      WHEN @BackupSoftware = 'MSBP' AND @CurrentBackupType = 'FULL' THEN 'bak.gz'
+      WHEN @BackupSoftware = 'MSBP' AND @CurrentBackupType = 'DIFF' THEN 'dif.gz'
+      WHEN @BackupSoftware = 'MSBP' AND @CurrentBackupType = 'LOG' THEN 'trn.gz'
       END
 
 	  --SET @CurrentDirectory = @Directory + CASE WHEN RIGHT(@Directory,1) = '\' THEN '' ELSE '\' END + CASE (CHARINDEX(REPLACE(CAST(SERVERPROPERTY('servername') AS nvarchar),'\','$'),@Directory,1)) WHEN 0 THEN REPLACE(CAST(SERVERPROPERTY('servername') AS nvarchar),'\','$') + '\' ELSE '' END  + CASE UPPER(@Databases) WHEN 'SYSTEM_DATABASES' THEN 'Sistema' ELSE 'Usuario' END + '\' + @CurrentDatabaseNameFS 
@@ -1189,6 +1241,53 @@ BEGIN
           SET @CurrentCommand02 = @CurrentCommand02 + ' IF @ReturnCode <> 0 RAISERROR(''Error performing SQLsafe backup.'', 16, 1)'
         END
 
+        IF @BackupSoftware = 'MSBP'
+        BEGIN
+-- IMPLEMENTAR
+          SELECT @CurrentCommandType02 = CASE
+          WHEN @CurrentBackupType IN('DIFF','FULL') THEN 'BACKUP_DATABASE'
+          WHEN @CurrentBackupType = 'LOG' THEN 'BACKUP_LOG'
+          END
+
+
+          -- QUITAR COPY_ONLY cuando esté estable
+          SET @CurrentCommand02 = 'xp_cmdshell ''c:\msbp\msbp.exe backup "db(database=' + QUOTENAME(@CurrentDatabaseName) + ';'
+            -- CHECKSUM;buffercount=100;maxtransfersize=4194304)" "gzip(level=1)" 
+            -- "local(path=\\centcseg01\SQL06\PRE\CENTSQLD07\Usuario\_DBA_BBDD_Administration_v2\_DBA_BBDD_Administration_v2_FULL_20130613_195731_1_of_2.bak.gz;path=\\centcseg01\SQL06\PRE\CENTSQLD07\Usuario\_DBA_BBDD_Administration_v2\_DBA_BBDD_Administration_v2_FULL_20130613_195731_2_of_2.bak.gz;)"''';
+
+          IF @CurrentBackupType = 'FULL' SET @CurrentCommand02 = @CurrentCommand02 + 'backuptype=full;'
+          IF @CurrentBackupType = 'DIFF' SET @CurrentCommand02 = @CurrentCommand02 + 'backuptype=differential;'
+          IF @CurrentBackupType = 'LOG' SET @CurrentCommand02 = @CurrentCommand02 + 'backuptype=log;'
+
+          IF @ReadWriteFileGroups = 'Y' SET @CurrentCommand02 = @CurrentCommand02 + 'READ_WRITE_FILEGROUPS;'
+          IF @CheckSum = 'Y' SET @CurrentCommand02 = @CurrentCommand02 + 'CHECKSUM;'
+          IF @CheckSum = 'N' SET @CurrentCommand02 = @CurrentCommand02 + 'NO_CHECKSUM;'
+          
+          IF @CopyOnly = 'Y' SET @CurrentCommand02 = @CurrentCommand02 + 'COPY_ONLY;'
+          IF @BufferCount IS NOT NULL SET @CurrentCommand02 = @CurrentCommand02 + 'buffercount=' + CAST(@BufferCount AS nvarchar) + ';'
+          IF @MaxTransferSize IS NOT NULL SET @CurrentCommand02 = @CurrentCommand02 + 'maxtransfersize=' + CAST(@MaxTransferSize AS nvarchar) + ';'
+
+          -- Actualmente no soportado
+
+          --IF @BlockSize IS NOT NULL SET @CurrentCommand02 = @CurrentCommand02 + ', BLOCKSIZE = ' + CAST(@BlockSize AS nvarchar)                 
+          --IF @Description IS NOT NULL SET @CurrentCommand02 = @CurrentCommand02 + ', DESCRIPTION = N''' + REPLACE(@Description,'''','''''') + ''''
+
+          
+          IF @Compress = 'Y' SET @CurrentCommand02 = @CurrentCommand02 + ')" "gzip(level=1)"'
+
+          SET @CurrentCommand02 = @CurrentCommand02 + ' "local('
+
+          SELECT @CurrentCommand02 = @CurrentCommand02 + 'path=' + REPLACE(CurrentFilePath,'''','''''') + CASE WHEN ROW_NUMBER() OVER (ORDER BY CurrentFilePath ASC) <> @CurrentDBBackupFiles THEN ';' ELSE '' END
+          FROM @CurrentFiles
+          ORDER BY CurrentFilePath ASC
+
+          SET @CurrentCommand02 = @CurrentCommand02 + ')"'''
+
+          SET @CurrentCommand02 = REPLACE(@CurrentCommand02,'[','')
+          SET @CurrentCommand02 = REPLACE(@CurrentCommand02,']','')
+
+        END
+
         EXECUTE @CurrentCommandOutput02 = [dbo].[CommandExecute] @Command = @CurrentCommand02, @CommandType = @CurrentCommandType02, @Mode = 1, @DatabaseName = @CurrentDatabaseName, @LogToTable = @LogToTable, @Execute = @Execute
         SET @Error = @@ERROR
         IF @Error <> 0 SET @CurrentCommandOutput02 = @Error
@@ -1229,6 +1328,42 @@ BEGIN
 /* Full Text file*/		WHEN type=4 then dbo.MoveDBfile(physical_name, '') 
 					END
 			+ ''''
+          FROM sys.master_files
+          WHERE database_id=@CurrentDatabaseID
+        END
+
+        -- IMPLEMENTAR
+        IF @BackupSoftware = 'MSBP'
+        BEGIN
+          IF @Databases = 'SYSTEM_DATABASES'
+          SET @CurrentCommandType05='RESTORE_SYSTEM_DATABASE'
+        ELSE
+          SELECT @CurrentCommandType05 = CASE
+          WHEN @CurrentBackupType = 'FULL' THEN 'RESTORE_DATABASE' 
+          WHEN @CurrentBackupType = 'DIFF' THEN 'RESTORE_DIFFERENTIAL' 
+          WHEN @CurrentBackupType = 'LOG'  THEN 'RESTORE_LOG' 
+          END
+
+          SELECT @CurrentCommand05= CASE
+          WHEN @CurrentBackupType IN('DIFF','FULL') THEN 'RESTORE DATABASE ' + QUOTENAME(@CurrentDatabaseName) + ' FROM'
+          WHEN @CurrentBackupType = 'LOG' THEN 'RESTORE LOG ' + QUOTENAME(@CurrentDatabaseName) + ' FROM'
+          END
+
+          SELECT @CurrentCommand05 = @CurrentCommand05 + ' DISK = N''' + REPLACE(CurrentFilePath,'''','''''') + '''' + CASE WHEN ROW_NUMBER() OVER (ORDER BY CurrentFilePath ASC) <> @CurrentDBBackupFiles THEN ',' ELSE '' END
+          FROM @CurrentFiles
+          ORDER BY CurrentFilePath ASC
+
+          SET @CurrentCommand05 = @CurrentCommand05 + ' WITH FILE = 1, NORECOVERY,' + CASE when ((upper(@CurrentBackupType)='FULL')) then ' REPLACE,' else '' end + ' NOUNLOAD'
+          IF @CheckSum = 'Y' SET @CurrentCommand05 = @CurrentCommand05 + ' ,CHECKSUM'
+
+          SELECT @CurrentCommand05=@CurrentCommand05 + ' ,MOVE N''' + name + ''' TO N''' + 
+          CASE 
+/* Data file*/      WHEN type=0 then dbo.MoveDBfile(physical_name, '')
+/* Log file*/     WHEN type=1 then dbo.MoveDBfile(physical_name, '') 
+/* Filestream file*/  WHEN type=2 then dbo.MoveDBfile(physical_name, '') 
+/* Full Text file*/   WHEN type=4 then dbo.MoveDBfile(physical_name, '') 
+          END
+      + ''''
           FROM sys.master_files
           WHERE database_id=@CurrentDatabaseID
         END
@@ -1329,6 +1464,24 @@ BEGIN
         IF @CurrentCommandOutput03 <> 0 SET @ReturnCode = @CurrentCommandOutput03
       END
 
+-- IMPLEMENTAR
+
+        IF @BackupSoftware = 'MSBP'
+        BEGIN
+          SET @CurrentCommandType03 = 'RESTORE_VERIFYONLY'
+
+          SET @CurrentCommand03 = 'RESTORE VERIFYONLY FROM'
+
+          SELECT @CurrentCommand03 = @CurrentCommand03 + ' DISK = N''' + REPLACE(CurrentFilePath,'''','''''') + '''' + CASE WHEN ROW_NUMBER() OVER (ORDER BY CurrentFilePath ASC) <> @CurrentDBBackupFiles THEN ',' ELSE '' END
+          FROM @CurrentFiles
+          ORDER BY CurrentFilePath ASC
+
+          SET @CurrentCommand03 = @CurrentCommand03 + ' WITH '
+          IF @CheckSum = 'Y' SET @CurrentCommand03 = @CurrentCommand03 + 'CHECKSUM'
+          IF @CheckSum = 'N' SET @CurrentCommand03 = @CurrentCommand03 + 'NO_CHECKSUM'
+        END
+
+
       -- Delete old backup files
       IF (@CurrentCommandOutput02 = 0 AND @Verify = 'N' AND @CurrentCleanupDate IS NOT NULL)
       OR (@CurrentCommandOutput02 = 0 AND @Verify = 'Y' AND @CurrentCommandOutput03 = 0 AND @CurrentCleanupDate IS NOT NULL)
@@ -1341,7 +1494,7 @@ BEGIN
           WHERE CleanupCompleted = 0
           ORDER BY ID ASC
 
-          IF @BackupSoftware IS NULL
+          IF @BackupSoftware IS NULL or @BackupSoftware = 'MSBP'
           BEGIN
             SET @CurrentCommandType04 = 'xp_delete_file'
 
