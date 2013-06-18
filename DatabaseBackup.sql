@@ -594,7 +594,7 @@ BEGIN
 
     IF NOT EXISTS (SELECT * FROM @DirectoryInfo WHERE FileExists = 1 AND FileIsADirectory = 0)
     BEGIN
-        SET @ErrorMessage = 'The directory c:\msbp\msbp.exe does not exist.' + CHAR(13) + CHAR(10) + ' '
+        SET @ErrorMessage = 'The file c:\msbp\msbp.exe does not exist.' + CHAR(13) + CHAR(10) + ' '
         RAISERROR(@ErrorMessage,16,1) WITH NOWAIT
         SET @Error = @@ERROR
     END
