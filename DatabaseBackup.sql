@@ -1271,7 +1271,7 @@ BEGIN
           IF @Compress = 'Y' 
           BEGIN
             SET @CurrentCommand02 = @CurrentCommand02 + ')" "gzip('
-            IF @CompressionLevel IS NOT NULL SET @CurrentCommand02 = @CurrentCommand02 + 'level='+ @CompressionLevel 
+            IF @CompressionLevel IS NOT NULL SET @CurrentCommand02 = @CurrentCommand02 + 'level='+ CAST(@CompressionLevel AS nvarchar)
             SET @CurrentCommand02 = @CurrentCommand02 + ')"'
           END
 
@@ -1353,29 +1353,34 @@ BEGIN
           FROM @CurrentFiles
           ORDER BY CurrentFilePath ASC
 
-          SET @CurrentCommand05 = @CurrentCommand05 + ')"'''
+          SET @CurrentCommand05 = @CurrentCommand05 + ')"'
 
-          SET @CurrentCommand05 = @CurrentCommand05 + ' "gzip()" '
+          IF @Compress = 'Y' SET @CurrentCommand05 = @CurrentCommand05 + ' "gzip()"'
 
-          SET @CurrentCommand05 = @CurrentCommand05 + ' "db(database=' + @CurrentDatabaseName + ';FILE=1;NORECOVERY;'
+
+            -- FILE=1 ???
+
+          SET @CurrentCommand05 = @CurrentCommand05 + ' "db(database=' + @CurrentDatabaseName + ';NORECOVERY;'
           IF @CurrentBackupType = 'FULL' SET @CurrentCommand05 = @CurrentCommand05 + 'replace;restoretype=database;'
           IF @CurrentBackupType = 'DIFF' SET @CurrentCommand05 = @CurrentCommand05 + 'restoretype=database;'
           IF @CurrentBackupType = 'LOG' SET @CurrentCommand05 = @CurrentCommand05 + 'restoretype=log;'
           IF @CheckSum = 'Y' SET @CurrentCommand05 = @CurrentCommand05 + 'CHECKSUM;'
           IF @CheckSum = 'N' SET @CurrentCommand05 = @CurrentCommand05 + 'NO_CHECKSUM;'
 
-          SELECT @CurrentCommand05=@CurrentCommand05 + 'MOVE=''' + name + '''TO''' + 
+          SELECT @CurrentCommand05=@CurrentCommand05 + 'MOVE=''''' + name + '''''TO''''' + 
           CASE 
-/* Data file*/      WHEN type=0 then dbo.MoveDBfile(physical_name, '') + ';'
-/* Log file*/     WHEN type=1 then dbo.MoveDBfile(physical_name, '')  + ';'
-/* Filestream file*/  WHEN type=2 then dbo.MoveDBfile(physical_name, '')  + ';'
-/* Full Text file*/   WHEN type=4 then dbo.MoveDBfile(physical_name, '')  + ';'
+/* Data file*/      WHEN type=0 then dbo.MoveDBfile(physical_name, '')    + ''''';'
+/* Log file*/     WHEN type=1 then dbo.MoveDBfile(physical_name, '')      + ''''';'
+/* Filestream file*/  WHEN type=2 then dbo.MoveDBfile(physical_name, '')  + ''''';'
+/* Full Text file*/   WHEN type=4 then dbo.MoveDBfile(physical_name, '')  + ''''';'
           END
       + ''''
           FROM sys.master_files
           WHERE database_id=@CurrentDatabaseID
         END
         
+        SET @CurrentCommand05 = @CurrentCommand05 + ')"'
+
         EXECUTE @CurrentCommandOutput05 = [dbo].[CommandExecute] @Command = @CurrentCommand05, @CommandType = @CurrentCommandType05, @Mode = 1, @DatabaseName = @CurrentDatabaseName, @LogToTable = @LogToTable, @Execute = 'N'
         SET @Error = @@ERROR
         IF @Error <> 0 SET @CurrentCommandOutput05 = @Error
