@@ -635,7 +635,7 @@ BEGIN
     SET @Error = @@ERROR
   END
 
-  IF (@BackupSoftware IS NULL AND @CompressionLevel IS NOT NULL) OR (@BackupSoftware = 'HYPERBAC' AND @CompressionLevel IS NOT NULL) OR (@BackupSoftware = 'LITESPEED' AND (@CompressionLevel < 0 OR @CompressionLevel > 8)) OR (@BackupSoftware = 'SQLBACKUP' AND (@CompressionLevel < 0 OR @CompressionLevel > 4)) OR (@BackupSoftware = 'SQLSAFE' AND (@CompressionLevel < 1 OR @CompressionLevel > 4))
+  IF (@BackupSoftware IS NULL AND @CompressionLevel IS NOT NULL) OR (@BackupSoftware = 'HYPERBAC' AND @CompressionLevel IS NOT NULL) OR (@BackupSoftware = 'LITESPEED' AND (@CompressionLevel < 0 OR @CompressionLevel > 8)) OR (@BackupSoftware = 'SQLBACKUP' AND (@CompressionLevel < 0 OR @CompressionLevel > 4)) OR (@BackupSoftware = 'SQLSAFE' AND (@CompressionLevel < 1 OR @CompressionLevel > 4)) OR (@BackupSoftware = 'MSBP' AND (@CompressionLevel < 1 OR @CompressionLevel > 9))
   BEGIN
     SET @ErrorMessage = 'The value for the parameter @CompressionLevel is not supported.' + CHAR(13) + CHAR(10) + ' '
     RAISERROR(@ErrorMessage,16,1) WITH NOWAIT
@@ -1268,7 +1268,12 @@ BEGIN
           --IF @BlockSize IS NOT NULL SET @CurrentCommand02 = @CurrentCommand02 + ', BLOCKSIZE = ' + CAST(@BlockSize AS nvarchar)                 
           --IF @Description IS NOT NULL SET @CurrentCommand02 = @CurrentCommand02 + ', DESCRIPTION = N''' + REPLACE(@Description,'''','''''') + ''''
           
-          IF @Compress = 'Y' SET @CurrentCommand02 = @CurrentCommand02 + ')" "gzip(level=1)"'
+          IF @Compress = 'Y' 
+          BEGIN
+            SET @CurrentCommand02 = @CurrentCommand02 + ')" "gzip('
+            IF @CompressionLevel IS NOT NULL SET @CurrentCommand02 = @CurrentCommand02 + 'level='+ @CompressionLevel 
+            SET @CurrentCommand02 = @CurrentCommand02 + ')"'
+          END
 
           SET @CurrentCommand02 = @CurrentCommand02 + ' "local('
 
