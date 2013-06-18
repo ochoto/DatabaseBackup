@@ -1339,24 +1339,31 @@ BEGIN
           WHEN @CurrentBackupType = 'LOG'  THEN 'RESTORE_LOG' 
           END
 
-          SELECT @CurrentCommand05= CASE
-          WHEN @CurrentBackupType IN('DIFF','FULL') THEN 'RESTORE DATABASE ' + QUOTENAME(@CurrentDatabaseName) + ' FROM'
-          WHEN @CurrentBackupType = 'LOG' THEN 'RESTORE LOG ' + QUOTENAME(@CurrentDatabaseName) + ' FROM'
-          END
 
-          SELECT @CurrentCommand05 = @CurrentCommand05 + ' DISK = N''' + REPLACE(CurrentFilePath,'''','''''') + '''' + CASE WHEN ROW_NUMBER() OVER (ORDER BY CurrentFilePath ASC) <> @CurrentDBBackupFiles THEN ',' ELSE '' END
+          SET @CurrentCommand05 = 'xp_cmdshell ''c:\msbp\msbp.exe restore'
+
+          SET @CurrentCommand05 = @CurrentCommand05 + ' "local('
+
+          SELECT @CurrentCommand05 = @CurrentCommand05 + 'path=' + REPLACE(CurrentFilePath,'''','''''') + CASE WHEN ROW_NUMBER() OVER (ORDER BY CurrentFilePath ASC) <> @CurrentDBBackupFiles THEN ';' ELSE '' END
           FROM @CurrentFiles
           ORDER BY CurrentFilePath ASC
 
-          SET @CurrentCommand05 = @CurrentCommand05 + ' WITH FILE = 1, NORECOVERY,' + CASE when ((upper(@CurrentBackupType)='FULL')) then ' REPLACE,' else '' end + ' NOUNLOAD'
-          IF @CheckSum = 'Y' SET @CurrentCommand05 = @CurrentCommand05 + ' ,CHECKSUM'
+          SET @CurrentCommand05 = @CurrentCommand05 + ')"'''
 
-          SELECT @CurrentCommand05=@CurrentCommand05 + ' ,MOVE N''' + name + ''' TO N''' + 
+          SET @CurrentCommand05 = @CurrentCommand05 + ' "gzip()" '
+
+          SET @CurrentCommand05 = @CurrentCommand05 + ' "db(database=' + @CurrentDatabaseName + ';FILE=1;NORECOVERY;'
+          IF @CurrentBackupType = 'FULL' SET @CurrentCommand05 = @CurrentCommand05 + 'replace;restoretype=database;'
+          IF @CurrentBackupType = 'DIFF' SET @CurrentCommand05 = @CurrentCommand05 + 'restoretype=database;'
+          IF @CurrentBackupType = 'LOG' SET @CurrentCommand05 = @CurrentCommand05 + 'restoretype=log;'
+          IF @CheckSum = 'Y' SET @CurrentCommand05 = @CurrentCommand05 + 'CHECKSUM;'
+
+          SELECT @CurrentCommand05=@CurrentCommand05 + 'MOVE=''' + name + '''TO''' + 
           CASE 
-/* Data file*/      WHEN type=0 then dbo.MoveDBfile(physical_name, '')
-/* Log file*/     WHEN type=1 then dbo.MoveDBfile(physical_name, '') 
-/* Filestream file*/  WHEN type=2 then dbo.MoveDBfile(physical_name, '') 
-/* Full Text file*/   WHEN type=4 then dbo.MoveDBfile(physical_name, '') 
+/* Data file*/      WHEN type=0 then dbo.MoveDBfile(physical_name, '') + ';'
+/* Log file*/     WHEN type=1 then dbo.MoveDBfile(physical_name, '')  + ';'
+/* Filestream file*/  WHEN type=2 then dbo.MoveDBfile(physical_name, '')  + ';'
+/* Full Text file*/   WHEN type=4 then dbo.MoveDBfile(physical_name, '')  + ';'
           END
       + ''''
           FROM sys.master_files
