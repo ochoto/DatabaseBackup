@@ -1372,7 +1372,6 @@ BEGIN
 /* Filestream file*/  WHEN type=2 then dbo.MoveDBfile(physical_name, '')  + ''''';'
 /* Full Text file*/   WHEN type=4 then dbo.MoveDBfile(physical_name, '')  + ''''';'
           END
-      + ''''
           FROM sys.master_files
           WHERE database_id=@CurrentDatabaseID
         END
