@@ -1243,17 +1243,13 @@ BEGIN
 
         IF @BackupSoftware = 'MSBP'
         BEGIN
--- IMPLEMENTAR
+
           SELECT @CurrentCommandType02 = CASE
           WHEN @CurrentBackupType IN('DIFF','FULL') THEN 'BACKUP_DATABASE'
           WHEN @CurrentBackupType = 'LOG' THEN 'BACKUP_LOG'
           END
 
-
-          -- QUITAR COPY_ONLY cuando esté estable
           SET @CurrentCommand02 = 'xp_cmdshell ''c:\msbp\msbp.exe backup "db(database=' + QUOTENAME(@CurrentDatabaseName) + ';'
-            -- CHECKSUM;buffercount=100;maxtransfersize=4194304)" "gzip(level=1)" 
-            -- "local(path=\\centcseg01\SQL06\PRE\CENTSQLD07\Usuario\_DBA_BBDD_Administration_v2\_DBA_BBDD_Administration_v2_FULL_20130613_195731_1_of_2.bak.gz;path=\\centcseg01\SQL06\PRE\CENTSQLD07\Usuario\_DBA_BBDD_Administration_v2\_DBA_BBDD_Administration_v2_FULL_20130613_195731_2_of_2.bak.gz;)"''';
 
           IF @CurrentBackupType = 'FULL' SET @CurrentCommand02 = @CurrentCommand02 + 'backuptype=full;'
           IF @CurrentBackupType = 'DIFF' SET @CurrentCommand02 = @CurrentCommand02 + 'backuptype=differential;'
@@ -1271,7 +1267,6 @@ BEGIN
 
           --IF @BlockSize IS NOT NULL SET @CurrentCommand02 = @CurrentCommand02 + ', BLOCKSIZE = ' + CAST(@BlockSize AS nvarchar)                 
           --IF @Description IS NOT NULL SET @CurrentCommand02 = @CurrentCommand02 + ', DESCRIPTION = N''' + REPLACE(@Description,'''','''''') + ''''
-
           
           IF @Compress = 'Y' SET @CurrentCommand02 = @CurrentCommand02 + ')" "gzip(level=1)"'
 
