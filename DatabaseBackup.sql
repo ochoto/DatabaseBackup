@@ -1376,7 +1376,7 @@ BEGIN
           WHERE database_id=@CurrentDatabaseID
         END
         
-        SET @CurrentCommand05 = @CurrentCommand05 + ')"'
+        SET @CurrentCommand05 = @CurrentCommand05 + ')"'''
 
         EXECUTE @CurrentCommandOutput05 = [dbo].[CommandExecute] @Command = @CurrentCommand05, @CommandType = @CurrentCommandType05, @Mode = 1, @DatabaseName = @CurrentDatabaseName, @LogToTable = @LogToTable, @Execute = 'N'
         SET @Error = @@ERROR
