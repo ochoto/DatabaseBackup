@@ -1357,6 +1357,7 @@ BEGIN
           IF @CurrentBackupType = 'DIFF' SET @CurrentCommand05 = @CurrentCommand05 + 'restoretype=database;'
           IF @CurrentBackupType = 'LOG' SET @CurrentCommand05 = @CurrentCommand05 + 'restoretype=log;'
           IF @CheckSum = 'Y' SET @CurrentCommand05 = @CurrentCommand05 + 'CHECKSUM;'
+          IF @CheckSum = 'N' SET @CurrentCommand05 = @CurrentCommand05 + 'NO_CHECKSUM;'
 
           SELECT @CurrentCommand05=@CurrentCommand05 + 'MOVE=''' + name + '''TO''' + 
           CASE 
