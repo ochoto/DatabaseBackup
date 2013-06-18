@@ -1249,7 +1249,7 @@ BEGIN
           WHEN @CurrentBackupType = 'LOG' THEN 'BACKUP_LOG'
           END
 
-          SET @CurrentCommand02 = 'xp_cmdshell ''c:\msbp\msbp.exe backup "db(database=' + QUOTENAME(@CurrentDatabaseName) + ';'
+          SET @CurrentCommand02 = 'xp_cmdshell ''c:\msbp\msbp.exe backup "db(database=' + @CurrentDatabaseName + ';'
 
           IF @CurrentBackupType = 'FULL' SET @CurrentCommand02 = @CurrentCommand02 + 'backuptype=full;'
           IF @CurrentBackupType = 'DIFF' SET @CurrentCommand02 = @CurrentCommand02 + 'backuptype=differential;'
@@ -1283,8 +1283,6 @@ BEGIN
 
           SET @CurrentCommand02 = @CurrentCommand02 + ')"'''
 
-          SET @CurrentCommand02 = REPLACE(@CurrentCommand02,'[','')
-          SET @CurrentCommand02 = REPLACE(@CurrentCommand02,']','')
 
         END
 
