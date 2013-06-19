@@ -1474,6 +1474,8 @@ BEGIN
           IF @CheckSum = 'Y' SET @CurrentCommand03 = @CurrentCommand03 + 'CHECKSUM;'
           IF @CheckSum = 'N' SET @CurrentCommand03 = @CurrentCommand03 + 'NO_CHECKSUM;'
 
+          SET @CurrentCommand03 = @CurrentCommand03 + ')"'''
+
         END
 
         IF @BackupSoftware = 'SQLSAFE'
