@@ -1330,7 +1330,6 @@ BEGIN
           WHERE database_id=@CurrentDatabaseID
         END
 
-        -- IMPLEMENTAR
         IF @BackupSoftware = 'MSBP'
         BEGIN
           IF @Databases = 'SYSTEM_DATABASES'
@@ -1354,7 +1353,6 @@ BEGIN
           SET @CurrentCommand05 = @CurrentCommand05 + ')"'
 
           IF @Compress = 'Y' SET @CurrentCommand05 = @CurrentCommand05 + ' "gzip()"'
-
 
             -- FILE=1 ???
 
