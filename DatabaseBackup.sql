@@ -1472,21 +1472,27 @@ BEGIN
         IF @CurrentCommandOutput03 <> 0 SET @ReturnCode = @CurrentCommandOutput03
       END
 
--- IMPLEMENTAR
-
         IF @BackupSoftware = 'MSBP'
         BEGIN
           SET @CurrentCommandType03 = 'RESTORE_VERIFYONLY'
 
-          SET @CurrentCommand03 = 'RESTORE VERIFYONLY FROM'
+          SET @CurrentCommand03 = 'xp_cmdshell ''c:\msbp\msbp.exe restore'
 
-          SELECT @CurrentCommand03 = @CurrentCommand03 + ' DISK = N''' + REPLACE(CurrentFilePath,'''','''''') + '''' + CASE WHEN ROW_NUMBER() OVER (ORDER BY CurrentFilePath ASC) <> @CurrentDBBackupFiles THEN ',' ELSE '' END
+          SET @CurrentCommand03 = @CurrentCommand03 + ' "local('
+
+          SELECT @CurrentCommand03 = @CurrentCommand03 + 'path=' + REPLACE(CurrentFilePath,'''','''''') + CASE WHEN ROW_NUMBER() OVER (ORDER BY CurrentFilePath ASC) <> @CurrentDBBackupFiles THEN ';' ELSE '' END
           FROM @CurrentFiles
           ORDER BY CurrentFilePath ASC
 
-          SET @CurrentCommand03 = @CurrentCommand03 + ' WITH '
-          IF @CheckSum = 'Y' SET @CurrentCommand03 = @CurrentCommand03 + 'CHECKSUM'
-          IF @CheckSum = 'N' SET @CurrentCommand03 = @CurrentCommand03 + 'NO_CHECKSUM'
+          SET @CurrentCommand03 = @CurrentCommand03 + ')"'
+
+          IF @Compress = 'Y' SET @CurrentCommand03 = @CurrentCommand03 + ' "gzip()"'
+
+          SET @CurrentCommand03 = @CurrentCommand03 + ' "db(database=' + @CurrentDatabaseName + ';NORECOVERY;'
+          SET @CurrentCommand03 = @CurrentCommand03 + 'restoretype=verifyonly;'
+          IF @CheckSum = 'Y' SET @CurrentCommand03 = @CurrentCommand03 + 'CHECKSUM;'
+          IF @CheckSum = 'N' SET @CurrentCommand03 = @CurrentCommand03 + 'NO_CHECKSUM;'
+
         END
 
 
